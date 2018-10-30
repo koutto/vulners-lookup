@@ -99,7 +99,7 @@ else:
 
 
 columns = [
-    'ID',
+    #'ID',
     'Score',
     'Title',
     'Description',
@@ -114,9 +114,9 @@ for r in results:
         if type_ == 'exploit':
             type_ = colorize(type_, color='red', attrs='bold')
         data.append([
-            textwrap.fill(r['id'], 14),
+            #textwrap.fill(r['id'], 14),
             colorize(score, color=color_cvss(score), attrs='bold'),
-            textwrap.fill(remove_non_printable_chars(r['title']), 30),
+            textwrap.fill('[{id}] {title}'.format(id=r['id'], title=remove_non_printable_chars(r['title'])), 30),
             textwrap.fill(shorten(remove_non_printable_chars(r['description']), 230), 50),
             textwrap.fill(r['vhref'],78),
             type_,
