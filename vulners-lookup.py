@@ -52,7 +52,10 @@ def get_cvss_score(vuln, vulners_api):
     cvss = r['cvss']['score']
 
     if cvss == 0.0:
-        return vulners_api.aiScore(vuln['description'])[0]
+        try:
+            return vulners_api.aiScore(vuln['description'])[0]
+        except:
+            return 0.0
     else:
         return cvss
 
@@ -78,7 +81,22 @@ def info(string):
 
 # Command-line parsing
 # -----------------------------------------------------------------------------
-parser = argparse.ArgumentParser()
+USAGE = """
+
+Examples:
+
+- Simple product search:
+python3 vulners-lookup.py "Apache Tomcat"
+
+- Simple product search with version:
+python3 vulners-lookup.py "Apache Tomcat 8.5.0"
+
+- Search using "affectedSoftware" keyword (more accurate but not always working):
+python3 vulners-lookup.py affectedSoftware.name:Microsoft IIS AND affectedSoftware.version:"6.0"
+
+"""
+
+parser = argparse.ArgumentParser(usage=USAGE)
 
 parser.add_argument('product', help='Product to look for', action='store')
 
