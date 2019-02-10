@@ -108,16 +108,21 @@ args = parser.parse_args()
 info('Looking for "{}" in Vulners database...'.format(args.product))
 
 vulners_api = vulners.Vulners(api_key=API_KEY)
-results = vulners_api.search('{}  order:published'.format(args.product), limit=100)
+results = vulners_api.search('{}  order:published'.format(args.product), limit=200)
 
-if len(results) == 0:
+nb_results = 0
+for r in results:
+    if r['bulletinFamily'] not in ('info', 'blog', 'bugbounty', 'tools'):
+        nb_results += 1
+
+if nb_results == 0:
     info('No result has been found !')
 else:
-    info('{} results found. Retrieving CVSS scores or computing AI scores if not available...'.format(len(results)))
+    info('{} results found. Retrieving CVSS scores or computing AI scores if not available...'.format(nb_results))
 
 
 columns = [
-    #'ID',
+    '#',
     'Score',
     'Title',
     'Description',
@@ -125,6 +130,7 @@ columns = [
     'Type',
 ]
 data = list()
+i = 1
 for r in results:
     if r['bulletinFamily'] not in ('info', 'blog', 'bugbounty', 'tools'):
         score = get_cvss_score(r, vulners_api)
@@ -133,12 +139,14 @@ for r in results:
             type_ = colorize(type_, color='red', attrs='bold')
         data.append([
             #textwrap.fill(r['id'], 14),
+            i,
             colorize(score, color=color_cvss(score), attrs='bold'),
             textwrap.fill('[{id}] {title}'.format(id=r['id'], title=remove_non_printable_chars(r['title'])), 30),
             textwrap.fill(shorten(remove_non_printable_chars(r['description']), 230), 50),
             textwrap.fill(r['vhref'],78),
             type_,
         ])
+        i += 1
 
 #pprint.pprint(results)
 
