@@ -92,7 +92,7 @@ python3 vulners-lookup.py "Apache Tomcat"
 python3 vulners-lookup.py "Apache Tomcat 8.5.0"
 
 - Search using "affectedSoftware" keyword (more accurate but not always working):
-python3 vulners-lookup.py affectedSoftware.name:Microsoft IIS AND affectedSoftware.version:"6.0"
+python3 vulners-lookup.py 'affectedSoftware.name:"Microsoft IIS" AND affectedSoftware.version:"6.0"'
 
 """
 
