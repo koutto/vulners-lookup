@@ -112,7 +112,7 @@ results = vulners_api.search('{}  order:published'.format(args.product), limit=2
 
 nb_results = 0
 for r in results:
-    if r['bulletinFamily'] not in ('info', 'blog', 'bugbounty', 'tools'):
+    if r['bulletinFamily'] not in ('info', 'blog', 'bugbounty', 'tools', 'advertisement'):
         nb_results += 1
 
 if nb_results == 0:
@@ -132,7 +132,7 @@ columns = [
 data = list()
 i = 1
 for r in results:
-    if r['bulletinFamily'] not in ('info', 'blog', 'bugbounty', 'tools'):
+    if r['bulletinFamily'] not in ('info', 'blog', 'bugbounty', 'tools', 'advertisement'):
         score = get_cvss_score(r, vulners_api)
         type_ = r['bulletinFamily']
         if type_ == 'exploit':
