@@ -14,8 +14,8 @@ import pprint
 import colored
 import prettytable
 import textwrap
+import sys
 
-API_KEY = 'JIVPHXNKN9K8EWMVGQVWKX1PEF1GRVSXLTHFBRD31HH0XNGJILQEGCCDVQXILBCM'
 
 # Utils functions
 # -----------------------------------------------------------------------------
@@ -75,7 +75,17 @@ def color_cvss(cvss):
 
 def info(string):
     """Print info string"""
-    print(colorize('[*] ', color='light_blue', attrs='bold') + string)
+    print('{}{}'.format(colorize('[*] ', color='light_blue', attrs='bold'), string))
+
+
+def warning(string):
+    """Print warning string"""
+    print('{}{}'.format(colorize('[!] ', color='orange_1', attrs='bold'), string))
+
+
+def error(string):
+    """Print error string"""
+    print('{}{}'.format(colorize('[!] ', color='red', attrs='bold'), string))
 
 
 
@@ -86,29 +96,47 @@ USAGE = """
 Examples:
 
 - Simple product search:
-python3 vulners-lookup.py "Apache Tomcat"
+python3 vulners-lookup.py --apikey <API-key> "Apache Tomcat"
 
 - Simple product search with version:
-python3 vulners-lookup.py "Apache Tomcat 8.5.0"
+python3 vulners-lookup.py --apikey <API-key> "Apache Tomcat 8.5.0"
 
 - Search using "affectedSoftware" keyword (more accurate but not always working):
-python3 vulners-lookup.py 'affectedSoftware.name:"Microsoft IIS" AND affectedSoftware.version:"6.0"'
+python3 vulners-lookup.py --apikey <API-key> 'affectedSoftware.name:"Microsoft IIS" AND affectedSoftware.version:"6.0"'
 
 """
 
 parser = argparse.ArgumentParser(usage=USAGE)
 
+parser.add_argument('--apikey', 
+                    help     = 'Vulners API key', 
+                    action   = 'store', 
+                    dest     = 'apikey', 
+                    metavar  = '<API-key>', 
+                    required = True,
+                    default  = None)
 parser.add_argument('product', help='Product to look for', action='store')
 
 args = parser.parse_args()
+
 
 
 # Processing
 # -----------------------------------------------------------------------------
 info('Looking for "{}" in Vulners database...'.format(args.product))
 
-vulners_api = vulners.Vulners(api_key=API_KEY)
-results = vulners_api.search('{}  order:published'.format(args.product), limit=200)
+try:
+    vulners_api = vulners.Vulners(api_key=args.apikey)
+except:
+    error('Unable to connect to Vulners.com. Check internet connection !')
+    sys.exit(1)
+
+try:
+    results = vulners_api.search('{}  order:published'.format(args.product), limit=200)
+except Exception as e:
+    error('Unable to get results. Might happen is maximum requests count has been ' \
+        'reached with the API key in use')
+    sys.exit(1)
 
 nb_results = 0
 for r in results:
@@ -116,7 +144,8 @@ for r in results:
         nb_results += 1
 
 if nb_results == 0:
-    info('No result has been found !')
+    warning('No result has been found !')
+    sys.exit(0)
 else:
     info('{} results found. Retrieving CVSS scores or computing AI scores if not available...'.format(nb_results))
 

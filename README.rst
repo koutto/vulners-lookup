@@ -31,7 +31,7 @@ Usage
 
 .. code-block:: console
 
-	python3 test_vulners.py 'product name/version to search'
+	python3 vulners-lookup.py --apikey <your-API-key> 'product name/version to search'
 
 =======
 Example
