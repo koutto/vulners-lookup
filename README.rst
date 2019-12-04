@@ -27,11 +27,17 @@ Install Python3 dependencies:
 Usage
 =====
 
-**Search for vulnerabilities & exploit:**
+**Search for vulnerabilities & exploit (global search requiring API key):**
 
 .. code-block:: console
 
-	python3 vulners-lookup.py --apikey <your-API-key> 'product name/version to search'
+	python3 vulners-lookup.py all --apikey <your-API-key> 'product name/version to search'
+
+**Search for software version via API used by Nmap Vulners NSE script & Burp add-on:**
+
+.. code-block:: console
+
+	python3 vulners-lookup.py software --name <Product-Name> --version <Version-Number>
 
 =======
 Example
