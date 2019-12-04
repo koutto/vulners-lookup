@@ -134,27 +134,26 @@ def global_search(apikey, query):
     ]
     data = list()
     i = 1
+    results = []
     for r in results:
         if r['bulletinFamily'] not in ('info', 'blog', 'bugbounty', 'tools', 'advertisement'):
             score = get_cvss_score(r, vulners_api)
             type_ = r['bulletinFamily']
             if type_ == 'exploit':
                 type_ = colorize(type_, color='red', attrs='bold')
-            data.append([
-                #textwrap.fill(r['id'], 14),
-                i,
-                colorize(score, color=color_cvss(score), attrs='bold'),
-                textwrap.fill('[{id}] {title}'.format(id=r['id'], title=remove_non_printable_chars(r['title'])), 30),
-                textwrap.fill(shorten(remove_non_printable_chars(r['description']), 230), 50),
-                textwrap.fill(r['vhref'],78),
-                type_,
-            ])
+
+            result = {
+                'reference': r['id'],
+                'score': score,
+                'title': remove_non_printable_chars(res['title']).replace(';',','),
+                'description': remove_non_printable_chars(res['description']).replace(';',','),
+                'url': res['vhref'],
+                'type': type_,
+            }
+            results.append(result)
             i += 1
 
-    #pprint.pprint(results)
-
-    info('Results ordered by published date (desc):')
-    table(columns, data, hrules=True)
+    return results
 
 
 def software_api(name, version):
@@ -193,8 +192,8 @@ def software_api(name, version):
                 'reference': res['_id'],
                 'score': res['_source']['cvss']['score'] if 'cvss' in res['_source'] \
                     and 'score' in res['_source']['cvss'] else None,
-                'title': res['_source']['title'],
-                'description': res['_source']['description'],
+                'title': remove_non_printable_chars(res['_source']['title']).replace(';',','),
+                'description': remove_non_printable_chars(res['_source']['description']).replace(';',','),
                 'url': res['_source']['href'],
                 'type': res['_source']['type']
             }
@@ -207,7 +206,11 @@ def software_api(name, version):
         warning('Vulners API returns 0 result')
         sys.exit(0)
 
+    return results
 
+
+
+def display_results(results):
     columns = [
         '#',
         'Score',
@@ -232,6 +235,10 @@ def software_api(name, version):
     info('{} results returned:'.format(len(results)))
     table(columns, data, hrules=True)
 
+
+
+
+
 # Command-line parsing
 # -----------------------------------------------------------------------------
 # USAGE = """
@@ -246,6 +253,21 @@ def software_api(name, version):
 # """
 
 parser = argparse.ArgumentParser()
+
+parser.add_argument(
+    '--csv',
+    help='Output as CSV file (fields separated by semicolon)',
+    action='store',
+    metavar='<output-filename>',
+    dest='csv'
+)
+parser.add_argument(
+    '--display-csv',
+    help='Display CSV data at the end',
+    action='store_true',
+    dest='displaycsv'
+)
+
 subparsers = parser.add_subparsers(dest='mode')
 
 parser_all = subparsers.add_parser('all')
@@ -284,6 +306,36 @@ args = parser.parse_args()
 # Processing
 # -----------------------------------------------------------------------------
 if args.mode == 'all':
-    global_search(args.apikey, args.query)
+    results = global_search(args.apikey, args.query)
 elif args.mode == 'software':
-    software_api(args.name, args.version)
+    results = software_api(args.name, args.version)
+else:
+    sys.exit(1)
+
+display_results(results)
+
+#pprint.pprint(results)
+if args.csv or args.displaycsv:
+    csvdata = 'ID;CVSS;Title;Description;URL;Type\n'
+    for r in results:
+        csvdata += '{ref};{cvss};{title};{description};{url};{type}\n'.format(
+            ref=r['reference'],
+            cvss=r['score'],
+            title=r['title'],
+            description=r['description'],
+            url=r['url'],
+            type=r['type']) 
+
+    if args.displaycsv and len(results) > 0:
+        print()
+        info('CSV output:')
+        print(csvdata)
+
+    if args.csv: 
+        try:
+            with open(args.csv, 'w') as f:
+                f.write(csvdata)
+
+            info('CSV output written to {csv} file'.format(csv=args.csv))
+        except Exception as e:
+            error('An error occured when trying to write CSV output: {exc}'.format(exc=e))
