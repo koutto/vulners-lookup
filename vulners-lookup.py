@@ -8,6 +8,20 @@
 #
 # Based on Vulners API (https://github.com/vulnersCom/api)
 #
+# TODO:
+# ----
+# - Find a way to handle this problem when too much results:
+# $ python3 vulners-lookup.py software --cpe 'cpe:/a:oracle:database_server' --version 11.2.0.3
+# [*] Querying Vulners API for: cpe="cpe:/a:oracle:database_server", version=11.2.0.3...
+# [!] Vulners API returns 0 result
+# {
+#   "result": "warning",
+#   "data": {
+#     "warning": "Too much results - 70 for the query (cpe:\"cpe:/a:oracle:database_server\" AND (cpe:11.2.0.3* OR (description:\"11.2.0.3\" AND NOT (\"before version 11.2.0.3\" OR \"< 11.2.0.3\" OR \"less than 11.2.0.3\" OR \"before 11.2.0.3\" OR \"prior to 11.2.0.3\")))) OR (description:\"database_server\" AND description:\"11.2.0.3\" AND title:\"database_server\" AND bulletinFamily:exploit AND NOT (\"before version 11.2.0.3\" OR \"< 11.2.0.3\" OR \"less than 11.2.0.3\" OR \"before 11.2.0.3\" OR \"prior to 11.2.0.3\") AND -type:seebug) with software:cpe:/a:oracle:database_server version:11.2.0.3",
+#     "errorCode": 402
+#   }
+# }
+
 import argparse
 import requests
 import vulners
@@ -114,7 +128,8 @@ def global_search(apikey, query):
     try:
         vulners_api = vulners.Vulners(api_key=apikey)
     except:
-        error("Unable to connect to Vulners.com. Check internet connection !")
+        error("Unable to connect to Vulners.com. No Internet connection "
+            "or maximum requests count has been reached with the API key")
         sys.exit(1)
 
     try:
@@ -142,8 +157,6 @@ def global_search(apikey, query):
             "not available...".format(nb_results)
         )
 
-    columns = ["#", "Score", "Title", "Description", "URL", "Type"]
-    data = list()
     i = 1
     filtered_results = []
     for r in results:
@@ -167,17 +180,30 @@ def global_search(apikey, query):
     return filtered_results
 
 
-def software_api(name, version):
+def software_api(mode, software, version):
+    """
+    Query Vulners API in software mode. Same API used by:
+        - https://github.com/vulnersCom/nmap-vulners
+        - https://github.com/vulnersCom/burp-vulners-scanner
+
+    :param str mode: Mode to use - either "cpe" or "software". 
+        According to tests, "cpe" gives better results
+    :param str software: CPE v2.2 (without version) in "cpe" mode, product name in 
+        "software" mode
+    :param str version: Version number
+    """
     info(
-        'Querying Vulners API for: name="{name}", version={version}...'.format(
-            name=name, version=version
+        'Querying Vulners API for: {mode}="{name}", version={version}...'.format(
+            mode='cpe' if mode == 'cpe' else 'name',
+            name=software, 
+            version=version
         )
     )
 
     try:
         res = requests.get(
             "https://vulners.com/api/v3/burp/software",
-            params={"software": name, "version": version, "type": "software"},
+            params={"software": software, "version": version, "type": mode},
         )
     except:
         error("Unable to query the Vulners API. Check Internet Connection !")
@@ -227,6 +253,8 @@ def software_api(name, version):
 
     else:
         warning("Vulners API returns 0 result")
+        if json["data"]["errorCode"] != 401:
+            print(res.text)
         sys.exit(0)
 
     return results
@@ -276,6 +304,7 @@ Usage Examples:
 
 - Software search (API used by Nmap vulners NSE script & Burp add-on):
     python3 vulners-lookup.py software --name proftpd --version 1.3
+    python3 vulners-lookup.py software --cpe 'cpe:/a:joomla:joomla' --version 3.7
 """
 
 parser = argparse.ArgumentParser(
@@ -317,7 +346,13 @@ parser_software.add_argument(
     action="store",
     dest="name",
     metavar="<name>",
-    required=True,
+)
+parser_software.add_argument(
+    "--cpe",
+    help='Product CPE v2.2 (e.g. "cpe:/a:apache:tomcat")',
+    action='store',
+    dest='cpe',
+    metavar='<cpe>',
 )
 parser_software.add_argument(
     "--version",
@@ -336,9 +371,18 @@ args = parser.parse_args()
 if args.mode == "all":
     results = global_search(args.apikey, args.query)
 elif args.mode == "software":
-    results = software_api(args.name, args.version)
+    if not args.name and not args.cpe:
+        error('Wrong Usage: Either --name or --cpe is required')
+        sys.exit(1)
+
+    if args.cpe:
+        results = software_api('cpe', args.cpe, args.version)
+    else:
+        results = software_api('software', args.name, args.version)
 else:
     sys.exit(1)
+
+results.sort(key=lambda x: x['score'] or 0, reverse=True)
 
 display_results(results)
 
